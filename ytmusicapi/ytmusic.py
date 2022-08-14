@@ -76,6 +76,7 @@ class YTMusic(
             the ytmusicapi/locales directory.
         """
         self.auth = auth
+        self._loop = asyncio.get_event_loop()
 
         if isinstance(client_session, aiohttp.ClientSession):
             self._session = client_session
@@ -92,7 +93,7 @@ class YTMusic(
                 if os.path.isfile(auth):
                     file = auth
                     with open(file) as json_file:
-                        self.headers = CaseInsensitiveDict(orjson.load(json_file))
+                        self.headers = CaseInsensitiveDict(orjson.loads(json_file))
                 else:
                     self.headers = CaseInsensitiveDict(orjson.loads(auth))
 
@@ -107,7 +108,7 @@ class YTMusic(
 
         if "x-goog-visitor-id" not in self.headers:
             self.headers.update(
-                asyncio.gather([get_visitor_id(self._send_get_request)])[0]
+                self._loop.run_until_complete(get_visitor_id(self._send_get_request))
             )
 
         # prepare context

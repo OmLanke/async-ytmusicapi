@@ -14,7 +14,7 @@ def parse_album_header(response):
         album["description"] = header["description"]["runs"][0]["text"]
 
     album_info = parse_song_runs(header['subtitle']['runs'][2:])
-    album.update(album_info)
+    album |= album_info
 
     if len(header['secondSubtitle']['runs']) > 1:
         album['trackCount'] = to_int(header['secondSubtitle']['runs'][0]['text'])
@@ -30,8 +30,9 @@ def parse_album_header(response):
     if not album['audioPlaylistId']:
         album['audioPlaylistId'] = nav(toplevel, [0, 'buttonRenderer'] + NAVIGATION_PLAYLIST_ID,
                                        True)
-    service = nav(toplevel, [1, 'buttonRenderer', 'defaultServiceEndpoint'], True)
-    if service:
+    if service := nav(
+        toplevel, [1, 'buttonRenderer', 'defaultServiceEndpoint'], True
+    ):
         album['likeStatus'] = parse_like_status(service)
 
     return album

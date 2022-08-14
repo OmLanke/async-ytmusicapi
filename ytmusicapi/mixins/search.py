@@ -144,8 +144,7 @@ class SearchMixin:
                 "uploads. "
             )
 
-        params = get_search_params(filter, scope, ignore_spelling)
-        if params:
+        if params := get_search_params(filter, scope, ignore_spelling):
             body['params'] = params
 
         response = self._send_request(endpoint, body)

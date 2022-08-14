@@ -7,27 +7,33 @@ def parse_menu_playlists(data, result):
     watch_menu = find_objects_by_key(nav(data, MENU_ITEMS), 'menuNavigationItemRenderer')
     for item in [_x['menuNavigationItemRenderer'] for _x in watch_menu]:
         icon = nav(item, ['icon', 'iconType'])
-        if icon == 'MUSIC_SHUFFLE':
-            watch_key = 'shuffleId'
-        elif icon == 'MIX':
+        if icon == 'MIX':
             watch_key = 'radioId'
+        elif icon == 'MUSIC_SHUFFLE':
+            watch_key = 'shuffleId'
         else:
             continue
 
-        watch_id = nav(item, ['navigationEndpoint', 'watchPlaylistEndpoint', 'playlistId'], True)
-        if not watch_id:
-            watch_id = nav(item, ['navigationEndpoint', 'watchEndpoint', 'playlistId'], True)
-        if watch_id:
+        if watch_id := nav(
+            item,
+            ['navigationEndpoint', 'watchPlaylistEndpoint', 'playlistId'],
+            True,
+        ) or nav(
+            item, ['navigationEndpoint', 'watchEndpoint', 'playlistId'], True
+        ):
             result[watch_key] = watch_id
 
 
 def get_item_text(item, index, run_index=0, none_if_absent=False):
-    column = get_flex_column_item(item, index)
-    if not column:
+    if column := get_flex_column_item(item, index):
+        return (
+            None
+            if none_if_absent and len(column['text']['runs']) < run_index + 1
+            else column['text']['runs'][run_index]['text']
+        )
+
+    else:
         return None
-    if none_if_absent and len(column['text']['runs']) < run_index + 1:
-        return None
-    return column['text']['runs'][run_index]['text']
 
 
 def get_flex_column_item(item, index):
@@ -67,8 +73,7 @@ def parse_duration(duration):
     if duration is None:
         return duration
     mapped_increments = zip([1, 60, 3600], reversed(duration.split(":")))
-    seconds = sum(multiplier * int(time) for multiplier, time in mapped_increments)
-    return seconds
+    return sum(multiplier * int(time) for multiplier, time in mapped_increments)
 
 
 def i18n(method):

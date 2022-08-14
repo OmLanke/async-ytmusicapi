@@ -64,7 +64,7 @@ class PlaylistsMixin:
         The setVideoId is the unique id of this playlist item and
         needed for moving/removing playlist items
         """
-        browseId = "VL" + playlistId if not playlistId.startswith("VL") else playlistId
+        browseId = playlistId if playlistId.startswith("VL") else f"VL{playlistId}"
         body = {'browseId': browseId}
         endpoint = 'browse'
         response = self._send_request(endpoint, body)
@@ -276,14 +276,13 @@ class PlaylistsMixin:
 
         endpoint = 'browse/edit_playlist'
         response = self._send_request(endpoint, body)
-        if 'status' in response and 'SUCCEEDED' in response['status']:
-            result_dict = [
-                result_data.get("playlistEditVideoAddedResultData")
-                for result_data in response.get("playlistEditResults", [])
-            ]
-            return {"status": response["status"], "playlistEditResults": result_dict}
-        else:
+        if 'status' not in response or 'SUCCEEDED' not in response['status']:
             return response
+        result_dict = [
+            result_data.get("playlistEditVideoAddedResultData")
+            for result_data in response.get("playlistEditResults", [])
+        ]
+        return {"status": response["status"], "playlistEditResults": result_dict}
 
     def remove_playlist_items(self, playlistId: str, videos: List[Dict]) -> Union[str, Dict]:
         """
@@ -296,7 +295,7 @@ class PlaylistsMixin:
         """
         self._check_auth()
         videos = list(filter(lambda x: 'videoId' in x and 'setVideoId' in x, videos))
-        if len(videos) == 0:
+        if not videos:
             raise Exception(
                 "Cannot remove songs, because setVideoId is missing. Do you own this playlist?")
 

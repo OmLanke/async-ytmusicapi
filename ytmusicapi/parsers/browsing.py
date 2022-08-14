@@ -51,7 +51,6 @@ class Parser:
             search_result = {'category': category}
             if not resultType:
                 resultType = get_item_text(data, 1).lower()
-                result_types = ['artist', 'playlist', 'song', 'video', 'station']
                 result_types_local = [
                     _('artist'), _('playlist'),
                     _('song'), _('video'),
@@ -61,6 +60,7 @@ class Parser:
                 if resultType not in result_types_local:
                     resultType = 'album'
                 else:
+                    result_types = ['artist', 'playlist', 'song', 'video', 'station']
                     resultType = result_types[result_types_local.index(resultType)]
 
             search_result['resultType'] = resultType
@@ -80,8 +80,12 @@ class Parser:
                 has_author = len(flex_item) == default_offset + 3
                 search_result['itemCount'] = nav(
                     flex_item, [default_offset + has_author * 2, 'text']).split(' ')[0]
-                search_result['author'] = None if not has_author else nav(
-                    flex_item, [default_offset, 'text'])
+                search_result['author'] = (
+                    nav(flex_item, [default_offset, 'text'])
+                    if has_author
+                    else None
+                )
+
 
             elif resultType == 'station':
                 search_result['videoId'] = nav(data, NAVIGATION_VIDEO_ID)
@@ -90,8 +94,9 @@ class Parser:
             elif resultType == 'song':
                 search_result['album'] = None
                 if 'menu' in data:
-                    toggle_menu = find_object_by_key(nav(data, MENU_ITEMS), TOGGLE_MENU)
-                    if toggle_menu:
+                    if toggle_menu := find_object_by_key(
+                        nav(data, MENU_ITEMS), TOGGLE_MENU
+                    ):
                         search_result['feedbackTokens'] = parse_song_menu_tokens(toggle_menu)
 
             elif resultType == 'video':
@@ -99,21 +104,7 @@ class Parser:
                 search_result['videoType'] = nav(data, PLAY_BUTTON + NAVIGATION_VIDEO_TYPE, True)
 
             elif resultType == 'upload':
-                browse_id = nav(data, NAVIGATION_BROWSE_ID, True)
-                if not browse_id:  # song result
-                    flex_items = [
-                        nav(get_flex_column_item(data, i), ['text', 'runs'], True)
-                        for i in range(2)
-                    ]
-                    if flex_items[0]:
-                        search_result['videoId'] = nav(flex_items[0][0], NAVIGATION_VIDEO_ID, True)
-                        search_result['playlistId'] = nav(flex_items[0][0], NAVIGATION_PLAYLIST_ID,
-                                                          True)
-                    if flex_items[1]:
-                        search_result.update(parse_song_runs(flex_items[1]))
-                    search_result['resultType'] = 'song'
-
-                else:  # artist or album result
+                if browse_id := nav(data, NAVIGATION_BROWSE_ID, True):
                     search_result['browseId'] = browse_id
                     if 'artist' in search_result['browseId']:
                         search_result['resultType'] = 'artist'
@@ -128,6 +119,19 @@ class Parser:
                         if len(runs) > 2:  # date may be missing
                             search_result['releaseDate'] = runs[2]
                         search_result['resultType'] = 'album'
+
+                else:
+                    flex_items = [
+                        nav(get_flex_column_item(data, i), ['text', 'runs'], True)
+                        for i in range(2)
+                    ]
+                    if flex_items[0]:
+                        search_result['videoId'] = nav(flex_items[0][0], NAVIGATION_VIDEO_ID, True)
+                        search_result['playlistId'] = nav(flex_items[0][0], NAVIGATION_PLAYLIST_ID,
+                                                          True)
+                    if flex_items[1]:
+                        search_result |= parse_song_runs(flex_items[1])
+                    search_result['resultType'] = 'song'
 
             if resultType in ['song', 'video']:
                 search_result['videoId'] = nav(
@@ -168,12 +172,13 @@ class Parser:
         ]
         artist = {}
         for i, category in enumerate(categories):
-            data = [
-                r['musicCarouselShelfRenderer'] for r in results
+            if data := [
+                r['musicCarouselShelfRenderer']
+                for r in results
                 if 'musicCarouselShelfRenderer' in r
-                and nav(r, CAROUSEL + CAROUSEL_TITLE)['text'].lower() == categories_local[i]
-            ]
-            if len(data) > 0:
+                and nav(r, CAROUSEL + CAROUSEL_TITLE)['text'].lower()
+                == categories_local[i]
+            ]:
                 artist[category] = {'browseId': None, 'results': []}
                 if 'navigationEndpoint' in nav(data[0], CAROUSEL_TITLE):
                     artist[category]['browseId'] = nav(data[0],
@@ -190,11 +195,7 @@ class Parser:
 
 
 def parse_content_list(results, parse_func, key=MTRIR):
-    contents = []
-    for result in results:
-        contents.append(parse_func(result[key]))
-
-    return contents
+    return [parse_func(result[key]) for result in results]
 
 
 def parse_album(result):
@@ -222,14 +223,15 @@ def parse_song(result):
         'playlistId': nav(result, NAVIGATION_PLAYLIST_ID, True),
         'thumbnails': nav(result, THUMBNAIL_RENDERER)
     }
-    song.update(parse_song_runs(result['subtitle']['runs']))
+    song |= parse_song_runs(result['subtitle']['runs'])
     return song
 
 
 def parse_song_flat(data):
     columns = [
-        get_flex_column_item(data, i) for i in range(0, len(data['flexColumns']))
+        get_flex_column_item(data, i) for i in range(len(data['flexColumns']))
     ]
+
     song = {
         'title': nav(columns[0], TEXT_RUN_TEXT),
         'videoId': nav(columns[0], TEXT_RUN + NAVIGATION_VIDEO_ID, True),

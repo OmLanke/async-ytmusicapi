@@ -20,7 +20,7 @@ def parse_chart_artist(data):
         'subscribers': subscribers,
         'thumbnails': nav(data, THUMBNAILS),
     }
-    parsed.update(parse_ranking(data))
+    parsed |= parse_ranking(data)
     return parsed
 
 

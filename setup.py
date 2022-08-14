@@ -5,9 +5,8 @@ VERSIONFILE = 'ytmusicapi/_version.py'
 
 version_line = open(VERSIONFILE).read()
 version_re = r"^__version__ = ['\"]([^'\"]*)['\"]"
-match = re.search(version_re, version_line, re.M)
-if match:
-    version = match.group(1)
+if match := re.search(version_re, version_line, re.M):
+    version = match[1]
 else:
     raise RuntimeError("Could not find version in '%s'" % VERSIONFILE)
 

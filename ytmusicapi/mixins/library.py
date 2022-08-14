@@ -211,7 +211,7 @@ class LibraryMixin:
 
         return songs
 
-    def remove_history_items(self, feedbackTokens: List[str]) -> Dict:  # pragma: no cover
+    def remove_history_items(self, feedbackTokens: List[str]) -> Dict:    # pragma: no cover
         """
         Remove an item from the account's history. This method does currently not work with brand accounts
 
@@ -221,9 +221,7 @@ class LibraryMixin:
         self._check_auth()
         body = {'feedbackTokens': feedbackTokens}
         endpoint = 'feedback'
-        response = self._send_request(endpoint, body)
-
-        return response
+        return self._send_request(endpoint, body)
 
     def rate_song(self, videoId: str, rating: str = 'INDIFFERENT') -> Dict:
         """
@@ -255,7 +253,7 @@ class LibraryMixin:
         self._check_auth()
         body = {'feedbackTokens': feedbackTokens}
         endpoint = 'feedback'
-        return endpoint if not endpoint else self._send_request(endpoint, body)
+        return self._send_request(endpoint, body) if endpoint else endpoint
 
     def rate_playlist(self, playlistId: str, rating: str = 'INDIFFERENT') -> Dict:
         """
@@ -272,7 +270,7 @@ class LibraryMixin:
         self._check_auth()
         body = {'target': {'playlistId': playlistId}}
         endpoint = prepare_like_endpoint(rating)
-        return endpoint if not endpoint else self._send_request(endpoint, body)
+        return self._send_request(endpoint, body) if endpoint else endpoint
 
     def subscribe_artists(self, channelIds: List[str]) -> Dict:
         """

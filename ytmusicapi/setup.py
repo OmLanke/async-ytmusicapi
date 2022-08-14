@@ -9,7 +9,10 @@ def setup(filepath=None, headers_raw=None):
     contents = []
     if not headers_raw:
         eof = "Ctrl-D" if platform.system() != "Windows" else "'Enter, Ctrl-Z, Enter'"
-        print("Please paste the request headers from Firefox and press " + eof + " to continue:")
+        print(
+            f"Please paste the request headers from Firefox and press {eof} to continue:"
+        )
+
         while True:
             try:
                 line = input()
@@ -29,10 +32,14 @@ def setup(filepath=None, headers_raw=None):
             user_headers[header[0].lower()] = ': '.join(header[1:])
 
     except Exception as e:
-        raise Exception("Error parsing your input, please try again. Full error: " + str(e))
+        raise Exception(
+            f"Error parsing your input, please try again. Full error: {str(e)}"
+        )
 
-    missing_headers = {"cookie", "x-goog-authuser"} - set(k.lower() for k in user_headers.keys())
-    if missing_headers:
+
+    if missing_headers := {"cookie", "x-goog-authuser"} - {
+        k.lower() for k in user_headers
+    }:
         raise Exception(
             "The following entries are missing in your headers: " + ", ".join(missing_headers)
             + ". Please try a different request (such as /browse) and make sure you are logged in."
@@ -43,7 +50,7 @@ def setup(filepath=None, headers_raw=None):
         user_headers.pop(i, None)
 
     init_headers = initialize_headers()
-    user_headers.update(init_headers)
+    user_headers |= init_headers
     headers = user_headers
 
     if filepath is not None:

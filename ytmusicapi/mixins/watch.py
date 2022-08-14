@@ -107,7 +107,7 @@ class WatchMixin:
         if videoId:
             body['videoId'] = videoId
             if not playlistId:
-                playlistId = "RDAMVM" + videoId
+                playlistId = f"RDAMVM{videoId}"
             if not params:
                 body['watchEndpointMusicSupportedConfigs'] = {
                     'watchEndpointMusicConfig': {
@@ -117,7 +117,7 @@ class WatchMixin:
                 }
         body['playlistId'] = validate_playlist_id(playlistId)
         is_playlist = body['playlistId'].startswith('PL') or \
-                      body['playlistId'].startswith('OLA')
+                          body['playlistId'].startswith('OLA')
         if params:
             body['params'] = params
         endpoint = 'next'

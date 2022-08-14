@@ -212,7 +212,7 @@ class UploadsMixin:
         upload_url = "https://upload.youtube.com/upload/usermusic/http?authuser=%s" % headers[
             'x-goog-authuser']
         filesize = os.path.getsize(filepath)
-        body = ("filename=" + ntpath.basename(filepath)).encode('utf-8')
+        body = f"filename={ntpath.basename(filepath)}".encode('utf-8')
         headers.pop('content-encoding', None)
         headers['content-type'] = 'application/x-www-form-urlencoded;charset=utf-8'
         headers['X-Goog-Upload-Command'] = 'start'
@@ -225,12 +225,9 @@ class UploadsMixin:
         with open(filepath, 'rb') as file:
             response = requests.post(upload_url, data=file, headers=headers, proxies=self.proxies)
 
-        if response.status_code == 200:
-            return 'STATUS_SUCCEEDED'
-        else:
-            return response
+        return 'STATUS_SUCCEEDED' if response.status_code == 200 else response
 
-    def delete_upload_entity(self, entityId: str) -> Union[str, Dict]:  # pragma: no cover
+    def delete_upload_entity(self, entityId: str) -> Union[str, Dict]:    # pragma: no cover
         """
         Deletes a previously uploaded song or album
 
@@ -246,7 +243,4 @@ class UploadsMixin:
         body = {"entityId": entityId}
         response = self._send_request(endpoint, body)
 
-        if 'error' not in response:
-            return 'STATUS_SUCCEEDED'
-        else:
-            return response['error']
+        return 'STATUS_SUCCEEDED' if 'error' not in response else response['error']

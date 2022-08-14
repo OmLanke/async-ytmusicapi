@@ -201,20 +201,17 @@ class BrowsingMixin:
                 }
             }
         """
-        if channelId.startswith("MPLA"):
-            channelId = channelId[4:]
+        channelId = channelId.removeprefix("MPLA")
         body = {'browseId': channelId}
         endpoint = 'browse'
         response = self._send_request(endpoint, body)
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST)
 
-        artist = {'description': None, 'views': None}
         header = response['header']['musicImmersiveHeaderRenderer']
-        artist['name'] = nav(header, TITLE_TEXT)
-        descriptionShelf = find_object_by_key(results,
-                                              DESCRIPTION_SHELF[0],
-                                              is_key=True)
-        if descriptionShelf:
+        artist = {'description': None, 'views': None, 'name': nav(header, TITLE_TEXT)}
+        if descriptionShelf := find_object_by_key(
+            results, DESCRIPTION_SHELF[0], is_key=True
+        ):
             artist['description'] = nav(descriptionShelf, DESCRIPTION)
             artist['views'] = None if 'subheader' not in descriptionShelf else descriptionShelf[
                 'subheader']['runs'][0]['text']
@@ -236,7 +233,7 @@ class BrowsingMixin:
                 artist['songs']['browseId'] = nav(musicShelf, TITLE + NAVIGATION_BROWSE_ID)
             artist['songs']['results'] = parse_playlist_items(musicShelf['contents'])
 
-        artist.update(self.parser.parse_artist_contents(results))
+        artist |= self.parser.parse_artist_contents(results)
         return artist
 
     def get_artist_albums(self, channelId: str, params: str) -> List[Dict]:
@@ -253,9 +250,7 @@ class BrowsingMixin:
         endpoint = 'browse'
         response = self._send_request(endpoint, body)
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST_ITEM + GRID_ITEMS)
-        albums = parse_albums(results)
-
-        return albums
+        return parse_albums(results)
 
     def get_user(self, channelId: str) -> Dict:
         """
@@ -310,7 +305,7 @@ class BrowsingMixin:
         response = self._send_request(endpoint, body)
         user = {'name': nav(response, ['header', 'musicVisualHeaderRenderer'] + TITLE_TEXT)}
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST)
-        user.update(self.parser.parse_artist_contents(results))
+        user |= self.parser.parse_artist_contents(results)
         return user
 
     def get_user_playlists(self, channelId: str, params: str) -> List[Dict]:
@@ -327,9 +322,7 @@ class BrowsingMixin:
         body = {"browseId": channelId, 'params': params}
         response = self._send_request(endpoint, body)
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST_ITEM + GRID_ITEMS)
-        user_playlists = parse_content_list(results, parse_playlist)
-
-        return user_playlists
+        return parse_content_list(results, parse_playlist)
 
     def get_album_browse_id(self, audioPlaylistId: str):
         """
@@ -339,12 +332,13 @@ class BrowsingMixin:
         :return: browseId (starting with `MPREb_`)
         """
         params = {"list": audioPlaylistId}
-        response = self._send_get_request(YTM_DOMAIN + "/playlist", params)
+        response = self._send_get_request(f"{YTM_DOMAIN}/playlist", params)
         matches = re.findall(r"\"MPRE.+?\"", response)
-        browse_id = None
-        if len(matches) > 0:
-            browse_id = matches[0].encode('utf8').decode('unicode-escape').strip('"')
-        return browse_id
+        return (
+            matches[0].encode('utf8').decode('unicode-escape').strip('"')
+            if len(matches) > 0
+            else None
+        )
 
     def get_album(self, browseId: str) -> Dict:
         """
@@ -669,13 +663,18 @@ class BrowsingMixin:
             }
 
         """
-        lyrics = {}
         if not browseId:
             raise Exception("Invalid browseId provided. This song might not have lyrics.")
 
         response = self._send_request('browse', {'browseId': browseId})
-        lyrics['lyrics'] = nav(response, ['contents'] + SECTION_LIST_ITEM
-                               + DESCRIPTION_SHELF + DESCRIPTION, True)
+        lyrics = {
+            'lyrics': nav(
+                response,
+                ['contents'] + SECTION_LIST_ITEM + DESCRIPTION_SHELF + DESCRIPTION,
+                True,
+            )
+        }
+
         lyrics['source'] = nav(response, ['contents'] + SECTION_LIST_ITEM
                                + DESCRIPTION_SHELF + ['footer'] + RUN_TEXT, True)
 

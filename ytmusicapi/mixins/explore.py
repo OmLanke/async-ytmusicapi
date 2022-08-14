@@ -51,12 +51,13 @@ class ExploreMixin:
         response = self._send_request('browse', {'browseId': 'FEmusic_moods_and_genres'})
         for section in nav(response, SINGLE_COLUMN_TAB + SECTION_LIST):
             title = nav(section, GRID + ['header', 'gridHeaderRenderer'] + TITLE_TEXT)
-            sections[title] = []
-            for category in nav(section, GRID_ITEMS):
-                sections[title].append({
+            sections[title] = [
+                {
                     "title": nav(category, CATEGORY_TITLE),
-                    "params": nav(category, CATEGORY_PARAMS)
-                })
+                    "params": nav(category, CATEGORY_PARAMS),
+                }
+                for category in nav(section, GRID_ITEMS)
+            ]
 
         return sections
 

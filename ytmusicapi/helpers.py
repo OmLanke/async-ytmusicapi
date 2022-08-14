@@ -51,8 +51,8 @@ def sapisid_from_cookie(raw_cookie):
 def get_authorization(auth):
     sha_1 = sha1()
     unix_timestamp = str(int(time.time()))
-    sha_1.update((unix_timestamp + ' ' + auth).encode('utf-8'))
-    return "SAPISIDHASH " + unix_timestamp + "_" + sha_1.hexdigest()
+    sha_1.update(f'{unix_timestamp} {auth}'.encode('utf-8'))
+    return f"SAPISIDHASH {unix_timestamp}_{sha_1.hexdigest()}"
 
 
 def to_int(string):
@@ -66,6 +66,7 @@ def to_int(string):
 
 
 def sum_total_duration(item):
-    return sum([
-        track['duration_seconds'] if 'duration_seconds' in track else 0 for track in item['tracks']
-    ])
+    return sum(
+        track['duration_seconds'] if 'duration_seconds' in track else 0
+        for track in item['tracks']
+    )

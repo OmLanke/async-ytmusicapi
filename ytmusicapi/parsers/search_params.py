@@ -19,36 +19,34 @@ def get_search_params(filter, scope, ignore_spelling):
 
     if scope is None and filter:
         if filter == 'playlists':
-            params = 'Eg-KAQwIABAAGAAgACgB'
-            if not ignore_spelling:
-                params += 'MABqChAEEAMQCRAFEAo%3D'
-            else:
-                params += 'MABCAggBagoQBBADEAkQBRAK'
+            params = 'Eg-KAQwIABAAGAAgACgB' + (
+                'MABCAggBagoQBBADEAkQBRAK'
+                if ignore_spelling
+                else 'MABqChAEEAMQCRAFEAo%3D'
+            )
 
         elif 'playlists' in filter:
             param1 = 'EgeKAQQoA'
-            if filter == 'featured_playlists':
-                param2 = 'Dg'
-            else:  # community_playlists
-                param2 = 'EA'
-
-            if not ignore_spelling:
-                param3 = 'BagwQDhAKEAMQBBAJEAU%3D'
-            else:
-                param3 = 'BQgIIAWoMEA4QChADEAQQCRAF'
+            param2 = 'Dg' if filter == 'featured_playlists' else 'EA'
+            param3 = (
+                'BQgIIAWoMEA4QChADEAQQCRAF'
+                if ignore_spelling
+                else 'BagwQDhAKEAMQBBAJEAU%3D'
+            )
 
         else:
             param1 = FILTERED_PARAM1
             param2 = _get_param2(filter)
-            if not ignore_spelling:
-                param3 = 'AWoMEA4QChADEAQQCRAF'
-            else:
-                param3 = 'AUICCAFqDBAOEAoQAxAEEAkQBQ%3D%3D'
+            param3 = (
+                'AUICCAFqDBAOEAoQAxAEEAkQBQ%3D%3D'
+                if ignore_spelling
+                else 'AWoMEA4QChADEAQQCRAF'
+            )
 
     if not scope and not filter and ignore_spelling:
         params = 'EhGKAQ4IARABGAEgASgAOAFAAUICCAE%3D'
 
-    return params if params else param1 + param2 + param3
+    return params or param1 + param2 + param3
 
 
 def _get_param2(filter):

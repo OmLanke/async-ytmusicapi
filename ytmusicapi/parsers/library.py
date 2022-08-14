@@ -7,16 +7,13 @@ def parse_artists(results, uploaded=False):
     artists = []
     for result in results:
         data = result[MRLIR]
-        artist = {}
-        artist['browseId'] = nav(data, NAVIGATION_BROWSE_ID)
+        artist = {'browseId': nav(data, NAVIGATION_BROWSE_ID)}
         artist['artist'] = get_item_text(data, 0)
         parse_menu_playlists(data, artist)
         if uploaded:
             artist['songs'] = get_item_text(data, 1).split(' ')[0]
-        else:
-            subtitle = get_item_text(data, 1)
-            if subtitle:
-                artist['subscribers'] = subtitle.split(' ')[0]
+        elif subtitle := get_item_text(data, 1):
+            artist['subscribers'] = subtitle.split(' ')[0]
         artist['thumbnails'] = nav(data, THUMBNAILS, True)
         artists.append(artist)
 
@@ -45,8 +42,7 @@ def parse_albums(results):
     albums = []
     for result in results:
         data = result[MTRIR]
-        album = {}
-        album['browseId'] = nav(data, TITLE + NAVIGATION_BROWSE_ID)
+        album = {'browseId': nav(data, TITLE + NAVIGATION_BROWSE_ID)}
         album['title'] = nav(data, TITLE_TEXT)
         album['thumbnails'] = nav(data, THUMBNAIL_RENDERER)
 

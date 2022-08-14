@@ -47,21 +47,32 @@ def get_parsed_continuation_items(response, parse_func, continuation_type):
 
 
 def get_continuation_params(results, ctoken_path):
-    ctoken = nav(results,
-                 ['continuations', 0, 'next' + ctoken_path + 'ContinuationData', 'continuation'])
+    ctoken = nav(
+        results,
+        [
+            'continuations',
+            0,
+            f'next{ctoken_path}ContinuationData',
+            'continuation',
+        ],
+    )
+
     return get_continuation_string(ctoken)
 
 
 def get_continuation_string(ctoken):
-    return "&ctoken=" + ctoken + "&continuation=" + ctoken
+    return f"&ctoken={ctoken}&continuation={ctoken}"
 
 
 def get_continuation_contents(continuation, parse_func):
-    for term in ['contents', 'items']:
-        if term in continuation:
-            return parse_func(continuation[term])
-
-    return []
+    return next(
+        (
+            parse_func(continuation[term])
+            for term in ['contents', 'items']
+            if term in continuation
+        ),
+        [],
+    )
 
 
 def resend_request_until_parsed_response_is_valid(request_func, request_additional_params,

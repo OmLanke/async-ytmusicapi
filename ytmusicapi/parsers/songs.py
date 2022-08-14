@@ -3,22 +3,21 @@ import re
 
 
 def parse_song_artists(data, index):
-    flex_item = get_flex_column_item(data, index)
-    if not flex_item:
-        return None
-    else:
+    if flex_item := get_flex_column_item(data, index):
         runs = flex_item['text']['runs']
         return parse_song_artists_runs(runs)
+    else:
+        return None
 
 
 def parse_song_artists_runs(runs):
-    artists = []
-    for j in range(int(len(runs) / 2) + 1):
-        artists.append({
+    return [
+        {
             'name': runs[j * 2]['text'],
-            'id': nav(runs[j * 2], NAVIGATION_BROWSE_ID, True)
-        })
-    return artists
+            'id': nav(runs[j * 2], NAVIGATION_BROWSE_ID, True),
+        }
+        for j in range(len(runs) // 2 + 1)
+    ]
 
 
 def parse_song_runs(runs):
@@ -36,30 +35,29 @@ def parse_song_runs(runs):
             else:  # artist
                 parsed['artists'].append(item)
 
-        else:
-            # note: YT uses non-breaking space \xa0 to separate number and magnitude
-            if re.match(r"^\d([^ ])* [^ ]*$", text):
-                parsed['views'] = text.split(' ')[0]
+        elif re.match(r"^\d([^ ])* [^ ]*$", text):
+            parsed['views'] = text.split(' ')[0]
 
-            elif re.match(r"^(\d+:)*\d+:\d+$", text):
-                parsed['duration'] = text
-                parsed['duration_seconds'] = parse_duration(text)
+        elif re.match(r"^(\d+:)*\d+:\d+$", text):
+            parsed['duration'] = text
+            parsed['duration_seconds'] = parse_duration(text)
 
-            elif re.match(r"^\d{4}$", text):
-                parsed['year'] = text
+        elif re.match(r"^\d{4}$", text):
+            parsed['year'] = text
 
-            else:  # artist without id
-                parsed['artists'].append({'name': text, 'id': None})
+        else:  # artist without id
+            parsed['artists'].append({'name': text, 'id': None})
 
     return parsed
 
 
 def parse_song_album(data, index):
     flex_item = get_flex_column_item(data, index)
-    return None if not flex_item else {
-        'name': get_item_text(data, index),
-        'id': get_browse_id(flex_item, 0)
-    }
+    return (
+        {'name': get_item_text(data, index), 'id': get_browse_id(flex_item, 0)}
+        if flex_item
+        else None
+    )
 
 
 def parse_song_menu_tokens(item):

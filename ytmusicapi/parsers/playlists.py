@@ -90,10 +90,10 @@ def parse_playlist_items(results, menu_entries: List[List] = None):
             songs.append(song)
 
         except Exception as e:
-            print("Item " + str(count) + ": " + str(e))
+            print(f"Item {count}: {str(e)}")
 
     return songs
 
 
 def validate_playlist_id(playlistId):
-    return playlistId if not playlistId.startswith("VL") else playlistId[2:]
+    return playlistId[2:] if playlistId.startswith("VL") else playlistId

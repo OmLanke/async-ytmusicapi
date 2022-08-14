@@ -67,12 +67,11 @@ class YTMusic(BrowsingMixin, SearchMixin, WatchMixin, ExploreMixin, LibraryMixin
 
         if isinstance(requests_session, requests.Session):
             self._session = requests_session
-        else:
-            if requests_session:  # Build a new session.
-                self._session = requests.Session()
-                self._session.request = partial(self._session.request, timeout=30)
-            else:  # Use the Requests API module as a "session".
-                self._session = requests.api
+        elif requests_session:  # Build a new session.
+            self._session = requests.Session()
+            self._session.request = partial(self._session.request, timeout=30)
+        else:  # Use the Requests API module as a "session".
+            self._session = requests.api
 
         self.proxies = proxies
         self.cookies = {'CONSENT': 'YES+1'}
@@ -102,7 +101,7 @@ class YTMusic(BrowsingMixin, SearchMixin, WatchMixin, ExploreMixin, LibraryMixin
         self.context = initialize_context()
         self.context['context']['client']['hl'] = language
         locale_dir = os.path.abspath(os.path.dirname(__file__)) + os.sep + 'locales'
-        supported_languages = [f for f in os.listdir(locale_dir)]
+        supported_languages = list(os.listdir(locale_dir))
         if language not in supported_languages:
             raise Exception("Language not supported. Supported languages are "
                             ', '.join(supported_languages))
@@ -130,7 +129,7 @@ class YTMusic(BrowsingMixin, SearchMixin, WatchMixin, ExploreMixin, LibraryMixin
         body.update(self.context)
         if self.auth:
             origin = self.headers.get('origin', self.headers.get('x-origin'))
-            self.headers["Authorization"] = get_authorization(self.sapisid + ' ' + origin)
+            self.headers["Authorization"] = get_authorization(f'{self.sapisid} {origin}')
         response = self._session.post(YTM_BASE_API + endpoint + YTM_PARAMS + additionalParams,
                                       json=body,
                                       headers=self.headers,
@@ -138,8 +137,11 @@ class YTMusic(BrowsingMixin, SearchMixin, WatchMixin, ExploreMixin, LibraryMixin
                                       cookies=self.cookies)
         response_text = json.loads(response.text)
         if response.status_code >= 400:
-            message = "Server returned HTTP " + str(
-                response.status_code) + ": " + response.reason + ".\n"
+            message = (
+                (f"Server returned HTTP {str(response.status_code)}" + ": ")
+                + response.reason
+            ) + ".\n"
+
             error = response_text.get('error', {}).get('message')
             raise Exception(message + error)
         return response_text

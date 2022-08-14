@@ -46,7 +46,7 @@ def parse_watch_track(data):
         'likeStatus': like_status,
         'videoType': nav(data, ['navigationEndpoint'] + NAVIGATION_VIDEO_TYPE, True)
     }
-    track.update(song_info)
+    track |= song_info
     return track
 
 

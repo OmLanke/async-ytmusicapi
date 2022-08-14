@@ -39,7 +39,7 @@ class YTMusic(
         auth: str = None,
         user: str = None,
         client_session=None,
-        proxies: dict = None,
+        proxy: str = None,
         language: str = "en",
     ):
         """
@@ -66,25 +66,25 @@ class YTMusic(
           A falsy value disables sessions.
           It is generally a good idea to keep sessions enabled for
           performance reasons (connection pooling).
-        :param proxies: Optional. Proxy configuration in requests_ format_.
+        :param proxy: Optional. Proxy configuration in requests_ format_.
 
             .. _requests: https://requests.readthedocs.io/
-            .. _format: https://requests.readthedocs.io/en/master/user/advanced/#proxies
+            .. _format: https://requests.readthedocs.io/en/master/user/advanced/#proxy
 
         :param language: Optional. Can be used to change the language of returned data.
             English will be used by default. Available languages can be checked in
             the ytmusicapi/locales directory.
         """
         self.auth = auth
-        self._loop = asyncio.get_event_loop()
+        self._loop = asyncio.get_running_loop()
 
         if isinstance(client_session, aiohttp.ClientSession):
             self._session = client_session
         else:
-            self._session = aiohttp.ClientSession(json_serialize=orjson.dumps)
+            self._session = aiohttp.ClientSession()
             self._session.request = partial(self._session.request, timeout=30)
 
-        self.proxies = proxies
+        self.proxy = proxy
         self.cookies = {"CONSENT": "YES+1"}
 
         # prepare headers
@@ -107,9 +107,7 @@ class YTMusic(
             self.headers = initialize_headers()
 
         if "x-goog-visitor-id" not in self.headers:
-            self.headers.update(
-                self._loop.run_until_complete(get_visitor_id(self._send_get_request))
-            )
+            asyncio.create_task(self._update_headers())
 
         # prepare context
         self.context = initialize_context()
@@ -158,14 +156,14 @@ class YTMusic(
             YTM_BASE_API + endpoint + YTM_PARAMS + additionalParams,
             json=body,
             headers=self.headers,
-            proxies=self.proxies,
+            proxy=self.proxy,
             cookies=self.cookies,
         ) as response:
             response_text = await response.json(loads=orjson.loads)
             if response.status >= 400:
                 message = (
                     "Server returned HTTP "
-                    + str(response.status_code)
+                    + str(response.status)
                     + ": "
                     + response.reason
                     + ".\n"
@@ -174,16 +172,19 @@ class YTMusic(
                 raise Exception(message + error)
             return response_text
 
+    async def _update_headers(self):
+        self.headers.update(await get_visitor_id(self._send_get_request))
+
     async def _send_get_request(self, url: str, params: Dict = None):
         async with self._session.get(
             url,
             params=params,
             headers=self.headers,
-            proxies=self.proxies,
+            proxy=self.proxy,
             cookies=self.cookies,
         ) as response:
 
-            return response.text
+            return await response.text()
 
     def _check_auth(self):
         if not self.auth:

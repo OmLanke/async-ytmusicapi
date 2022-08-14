@@ -1,6 +1,8 @@
-import requests
 import gettext
 import os
+import asyncio
+import orjson
+import aiohttp
 from requests.structures import CaseInsensitiveDict
 from functools import partial
 from contextlib import suppress
@@ -17,19 +19,29 @@ from ytmusicapi.mixins.playlists import PlaylistsMixin
 from ytmusicapi.mixins.uploads import UploadsMixin
 
 
-class YTMusic(BrowsingMixin, SearchMixin, WatchMixin, ExploreMixin, LibraryMixin, PlaylistsMixin,
-              UploadsMixin):
+class YTMusic(
+    BrowsingMixin,
+    SearchMixin,
+    WatchMixin,
+    ExploreMixin,
+    LibraryMixin,
+    PlaylistsMixin,
+    UploadsMixin,
+):
     """
     Allows automated interactions with YouTube Music by emulating the YouTube web client's requests.
     Permits both authenticated and non-authenticated requests.
     Authentication header data must be provided on initialization.
     """
-    def __init__(self,
-                 auth: str = None,
-                 user: str = None,
-                 requests_session=True,
-                 proxies: dict = None,
-                 language: str = 'en'):
+
+    def __init__(
+        self,
+        auth: str = None,
+        user: str = None,
+        client_session=None,
+        proxies: dict = None,
+        language: str = "en",
+    ):
         """
         Create a new instance to interact with YouTube Music.
 
@@ -65,17 +77,14 @@ class YTMusic(BrowsingMixin, SearchMixin, WatchMixin, ExploreMixin, LibraryMixin
         """
         self.auth = auth
 
-        if isinstance(requests_session, requests.Session):
-            self._session = requests_session
+        if isinstance(client_session, aiohttp.ClientSession):
+            self._session = client_session
         else:
-            if requests_session:  # Build a new session.
-                self._session = requests.Session()
-                self._session.request = partial(self._session.request, timeout=30)
-            else:  # Use the Requests API module as a "session".
-                self._session = requests.api
+            self._session = aiohttp.ClientSession(json_serialize=orjson.dumps)
+            self._session.request = partial(self._session.request, timeout=30)
 
         self.proxies = proxies
-        self.cookies = {'CONSENT': 'YES+1'}
+        self.cookies = {"CONSENT": "YES+1"}
 
         # prepare headers
         if auth:
@@ -83,74 +92,97 @@ class YTMusic(BrowsingMixin, SearchMixin, WatchMixin, ExploreMixin, LibraryMixin
                 if os.path.isfile(auth):
                     file = auth
                     with open(file) as json_file:
-                        self.headers = CaseInsensitiveDict(json.load(json_file))
+                        self.headers = CaseInsensitiveDict(orjson.load(json_file))
                 else:
-                    self.headers = CaseInsensitiveDict(json.loads(auth))
+                    self.headers = CaseInsensitiveDict(orjson.loads(auth))
 
             except Exception as e:
                 print(
                     "Failed loading provided credentials. Make sure to provide a string or a file path. "
-                    "Reason: " + str(e))
+                    "Reason: " + str(e)
+                )
 
         else:  # no authentication
             self.headers = initialize_headers()
 
-        if 'x-goog-visitor-id' not in self.headers:
-            self.headers.update(get_visitor_id(self._send_get_request))
+        if "x-goog-visitor-id" not in self.headers:
+            self.headers.update(
+                asyncio.gather([get_visitor_id(self._send_get_request)])[0]
+            )
 
         # prepare context
         self.context = initialize_context()
-        self.context['context']['client']['hl'] = language
-        locale_dir = os.path.abspath(os.path.dirname(__file__)) + os.sep + 'locales'
+        self.context["context"]["client"]["hl"] = language
+        locale_dir = os.path.abspath(os.path.dirname(__file__)) + os.sep + "locales"
         supported_languages = [f for f in os.listdir(locale_dir)]
         if language not in supported_languages:
-            raise Exception("Language not supported. Supported languages are "
-                            ', '.join(supported_languages))
+            raise Exception(
+                "Language not supported. Supported languages are "
+                ", ".join(supported_languages)
+            )
         self.language = language
         try:
             locale.setlocale(locale.LC_ALL, self.language)
         except locale.Error:
             with suppress(locale.Error):
-                locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-        self.lang = gettext.translation('base', localedir=locale_dir, languages=[language])
+                locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
+        self.lang = gettext.translation(
+            "base", localedir=locale_dir, languages=[language]
+        )
         self.parser = browsing.Parser(self.lang)
 
         if user:
-            self.context['context']['user']['onBehalfOfUser'] = user
+            self.context["context"]["user"]["onBehalfOfUser"] = user
 
         # verify authentication credentials work
         if auth:
             try:
-                cookie = self.headers.get('cookie')
+                cookie = self.headers.get("cookie")
                 self.sapisid = sapisid_from_cookie(cookie)
             except KeyError:
-                raise Exception("Your cookie is missing the required value __Secure-3PAPISID")
+                raise Exception(
+                    "Your cookie is missing the required value __Secure-3PAPISID"
+                )
 
-    def _send_request(self, endpoint: str, body: Dict, additionalParams: str = "") -> Dict:
+    async def _send_request(
+        self, endpoint: str, body: Dict, additionalParams: str = ""
+    ) -> Dict:
         body.update(self.context)
         if self.auth:
-            origin = self.headers.get('origin', self.headers.get('x-origin'))
-            self.headers["Authorization"] = get_authorization(self.sapisid + ' ' + origin)
-        response = self._session.post(YTM_BASE_API + endpoint + YTM_PARAMS + additionalParams,
-                                      json=body,
-                                      headers=self.headers,
-                                      proxies=self.proxies,
-                                      cookies=self.cookies)
-        response_text = json.loads(response.text)
-        if response.status_code >= 400:
-            message = "Server returned HTTP " + str(
-                response.status_code) + ": " + response.reason + ".\n"
-            error = response_text.get('error', {}).get('message')
-            raise Exception(message + error)
-        return response_text
+            origin = self.headers.get("origin", self.headers.get("x-origin"))
+            self.headers["Authorization"] = get_authorization(
+                self.sapisid + " " + origin
+            )
+        async with self._session.post(
+            YTM_BASE_API + endpoint + YTM_PARAMS + additionalParams,
+            json=body,
+            headers=self.headers,
+            proxies=self.proxies,
+            cookies=self.cookies,
+        ) as response:
+            response_text = await response.json(loads=orjson.loads)
+            if response.status >= 400:
+                message = (
+                    "Server returned HTTP "
+                    + str(response.status_code)
+                    + ": "
+                    + response.reason
+                    + ".\n"
+                )
+                error = response_text.get("error", {}).get("message")
+                raise Exception(message + error)
+            return response_text
 
-    def _send_get_request(self, url: str, params: Dict = None):
-        response = self._session.get(url,
-                                     params=params,
-                                     headers=self.headers,
-                                     proxies=self.proxies,
-                                     cookies=self.cookies)
-        return response.text
+    async def _send_get_request(self, url: str, params: Dict = None):
+        async with self._session.get(
+            url,
+            params=params,
+            headers=self.headers,
+            proxies=self.proxies,
+            cookies=self.cookies,
+        ) as response:
+
+            return response.text
 
     def _check_auth(self):
         if not self.auth:

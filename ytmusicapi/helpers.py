@@ -1,5 +1,5 @@
 import re
-import json
+import orjson
 from http.cookies import SimpleCookie
 from hashlib import sha1
 import time
@@ -14,36 +14,33 @@ def initialize_headers():
         "accept-encoding": "gzip, deflate",
         "content-type": "application/json",
         "content-encoding": "gzip",
-        "origin": YTM_DOMAIN
+        "origin": YTM_DOMAIN,
     }
 
 
 def initialize_context():
     return {
-        'context': {
-            'client': {
-                'clientName': 'WEB_REMIX',
-                'clientVersion': '0.1'
-            },
-            'user': {}
+        "context": {
+            "client": {"clientName": "WEB_REMIX", "clientVersion": "0.1"},
+            "user": {},
         }
     }
 
 
-def get_visitor_id(request_func):
-    response = request_func(YTM_DOMAIN)
-    matches = re.findall(r'ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;', response)
+async def get_visitor_id(request_func):
+    response = await request_func(YTM_DOMAIN)
+    matches = re.findall(r"ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;", response)
     visitor_id = ""
     if len(matches) > 0:
-        ytcfg = json.loads(matches[0])
-        visitor_id = ytcfg.get('VISITOR_DATA')
-    return {'X-Goog-Visitor-Id': visitor_id}
+        ytcfg = orjson.loads(matches[0])
+        visitor_id = ytcfg.get("VISITOR_DATA")
+    return {"X-Goog-Visitor-Id": visitor_id}
 
 
 def sapisid_from_cookie(raw_cookie):
     cookie = SimpleCookie()
     cookie.load(raw_cookie)
-    return cookie['__Secure-3PAPISID'].value
+    return cookie["__Secure-3PAPISID"].value
 
 
 # SAPISID Hash reverse engineered by
@@ -51,21 +48,24 @@ def sapisid_from_cookie(raw_cookie):
 def get_authorization(auth):
     sha_1 = sha1()
     unix_timestamp = str(int(time.time()))
-    sha_1.update((unix_timestamp + ' ' + auth).encode('utf-8'))
+    sha_1.update((unix_timestamp + " " + auth).encode("utf-8"))
     return "SAPISIDHASH " + unix_timestamp + "_" + sha_1.hexdigest()
 
 
 def to_int(string):
-    number_string = re.sub('[^\\d]', '', string)
+    number_string = re.sub("[^\\d]", "", string)
     try:
         int_value = locale.atoi(number_string)
     except ValueError:
-        number_string = number_string.replace(',', '')
+        number_string = number_string.replace(",", "")
         int_value = int(number_string)
     return int_value
 
 
 def sum_total_duration(item):
-    return sum([
-        track['duration_seconds'] if 'duration_seconds' in track else 0 for track in item['tracks']
-    ])
+    return sum(
+        [
+            track["duration_seconds"] if "duration_seconds" in track else 0
+            for track in item["tracks"]
+        ]
+    )

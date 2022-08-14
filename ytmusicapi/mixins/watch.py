@@ -1,4 +1,4 @@
-from typing import List, Dict, Union
+from typing import List, Dict
 
 from ytmusicapi.continuations import get_continuations
 from ytmusicapi.parsers.playlists import validate_playlist_id
@@ -6,11 +6,9 @@ from ytmusicapi.parsers.watch import *
 
 
 class WatchMixin:
-    def get_watch_playlist(self,
-                           videoId: str = None,
-                           playlistId: str = None,
-                           limit=25,
-                           params: str = None) -> Dict[str, Union[List[Dict]]]:
+    async def get_watch_playlist(
+        self, videoId: str = None, playlistId: str = None, limit=25, params: str = None
+    ) -> Dict[str, List[Dict]]:
         """
         Get a watch list of tracks. This watch playlist appears when you press
         play on a track in YouTube Music.
@@ -98,65 +96,90 @@ class WatchMixin:
 
         """
         body = {
-            'enablePersistentPlaylistPanel': True,
-            'isAudioOnly': True,
-            'tunerSettingValue': 'AUTOMIX_SETTING_NORMAL'
+            "enablePersistentPlaylistPanel": True,
+            "isAudioOnly": True,
+            "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
         }
         if not videoId and not playlistId:
-            raise Exception("You must provide either a video id, a playlist id, or both")
+            raise Exception(
+                "You must provide either a video id, a playlist id, or both"
+            )
         if videoId:
-            body['videoId'] = videoId
+            body["videoId"] = videoId
             if not playlistId:
                 playlistId = "RDAMVM" + videoId
             if not params:
-                body['watchEndpointMusicSupportedConfigs'] = {
-                    'watchEndpointMusicConfig': {
-                        'hasPersistentPlaylistPanel': True,
-                        'musicVideoType': "MUSIC_VIDEO_TYPE_ATV",
+                body["watchEndpointMusicSupportedConfigs"] = {
+                    "watchEndpointMusicConfig": {
+                        "hasPersistentPlaylistPanel": True,
+                        "musicVideoType": "MUSIC_VIDEO_TYPE_ATV",
                     }
                 }
-        body['playlistId'] = validate_playlist_id(playlistId)
-        is_playlist = body['playlistId'].startswith('PL') or \
-                      body['playlistId'].startswith('OLA')
+        body["playlistId"] = validate_playlist_id(playlistId)
+        is_playlist = body["playlistId"].startswith("PL") or body[
+            "playlistId"
+        ].startswith("OLA")
         if params:
-            body['params'] = params
-        endpoint = 'next'
-        response = self._send_request(endpoint, body)
-        watchNextRenderer = nav(response, [
-            'contents', 'singleColumnMusicWatchNextResultsRenderer', 'tabbedRenderer',
-            'watchNextTabbedResultsRenderer'
-        ])
+            body["params"] = params
+        endpoint = "next"
+        response = await self._send_request(endpoint, body)
+        watchNextRenderer = nav(
+            response,
+            [
+                "contents",
+                "singleColumnMusicWatchNextResultsRenderer",
+                "tabbedRenderer",
+                "watchNextTabbedResultsRenderer",
+            ],
+        )
 
         lyrics_browse_id = get_tab_browse_id(watchNextRenderer, 1)
         related_browse_id = get_tab_browse_id(watchNextRenderer, 2)
 
-        results = nav(watchNextRenderer,
-                      TAB_CONTENT + ['musicQueueRenderer', 'content', 'playlistPanelRenderer'])
+        results = nav(
+            watchNextRenderer,
+            TAB_CONTENT + ["musicQueueRenderer", "content", "playlistPanelRenderer"],
+        )
         playlist = next(
             filter(
                 bool,
                 map(
-                    lambda x: nav(x, ['playlistPanelVideoRenderer'] + NAVIGATION_PLAYLIST_ID, True
-                                  ), results['contents'])), None)
-        tracks = parse_watch_playlist(results['contents'])
+                    lambda x: nav(
+                        x, ["playlistPanelVideoRenderer"] + NAVIGATION_PLAYLIST_ID, True
+                    ),
+                    results["contents"],
+                ),
+            ),
+            None,
+        )
+        tracks = parse_watch_playlist(results["contents"])
 
-        if 'continuations' in results:
+        if "continuations" in results:
             request_func = lambda additionalParams: self._send_request(
-                endpoint, body, additionalParams)
+                endpoint, body, additionalParams
+            )
             parse_func = lambda contents: parse_watch_playlist(contents)
             tracks.extend(
-                get_continuations(results, 'playlistPanelContinuation', limit - len(tracks),
-                                  request_func, parse_func, '' if is_playlist else 'Radio'))
+                await get_continuations(
+                    results,
+                    "playlistPanelContinuation",
+                    limit - len(tracks),
+                    request_func,
+                    parse_func,
+                    "" if is_playlist else "Radio",
+                )
+            )
 
-        return dict(tracks=tracks,
-                    playlistId=playlist,
-                    lyrics=lyrics_browse_id,
-                    related=related_browse_id)
+        return dict(
+            tracks=tracks,
+            playlistId=playlist,
+            lyrics=lyrics_browse_id,
+            related=related_browse_id,
+        )
 
-    def get_watch_playlist_shuffle(self,
-                                   videoId: str = None,
-                                   playlistId: str = None,
-                                   limit=50) -> Dict[str, Union[List[Dict]]]:
+    async def get_watch_playlist_shuffle(
+        self, videoId: str = None, playlistId: str = None, limit=50
+    ) -> Dict[str, List[Dict]]:
         """
         Shuffle any playlist
 
@@ -165,7 +188,6 @@ class WatchMixin:
         :param limit: The number of watch playlist items to return
         :return: A list of watch playlist items (see :py:func:`get_watch_playlist`)
         """
-        return self.get_watch_playlist(videoId=videoId,
-                                       playlistId=playlistId,
-                                       limit=limit,
-                                       params='wAEB8gECKAE%3D')
+        return await self.get_watch_playlist(
+            videoId=videoId, playlistId=playlistId, limit=limit, params="wAEB8gECKAE%3D"
+        )

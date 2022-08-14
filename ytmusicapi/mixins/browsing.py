@@ -8,7 +8,7 @@ from ytmusicapi.parsers.library import parse_albums
 
 
 class BrowsingMixin:
-    def get_home(self, limit=3) -> List[Dict]:
+    async def get_home(self, limit=3) -> List[Dict]:
         """
         Get the home page.
         The home page is structured as titled rows, returning 3 rows of music suggestions at a time.
@@ -94,27 +94,34 @@ class BrowsingMixin:
             ]
 
         """
-        endpoint = 'browse'
+        endpoint = "browse"
         body = {"browseId": "FEmusic_home"}
-        response = self._send_request(endpoint, body)
+        response = await self._send_request(endpoint, body)
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST)
         home = []
         home.extend(self.parser.parse_mixed_content(results))
 
-        section_list = nav(response, SINGLE_COLUMN_TAB + ['sectionListRenderer'])
-        if 'continuations' in section_list:
+        section_list = nav(response, SINGLE_COLUMN_TAB + ["sectionListRenderer"])
+        if "continuations" in section_list:
             request_func = lambda additionalParams: self._send_request(
-                endpoint, body, additionalParams)
+                endpoint, body, additionalParams
+            )
 
             parse_func = lambda contents: self.parser.parse_mixed_content(contents)
 
             home.extend(
-                get_continuations(section_list, 'sectionListContinuation', limit - len(home),
-                                  request_func, parse_func))
+                await get_continuations(
+                    section_list,
+                    "sectionListContinuation",
+                    limit - len(home),
+                    request_func,
+                    parse_func,
+                )
+            )
 
         return home
 
-    def get_artist(self, channelId: str) -> Dict:
+    async def get_artist(self, channelId: str) -> Dict:
         """
         Get information about an artist and their top releases (songs,
         albums, singles, videos, and related artists). The top lists
@@ -203,43 +210,54 @@ class BrowsingMixin:
         """
         if channelId.startswith("MPLA"):
             channelId = channelId[4:]
-        body = {'browseId': channelId}
-        endpoint = 'browse'
-        response = self._send_request(endpoint, body)
+        body = {"browseId": channelId}
+        endpoint = "browse"
+        response = await self._send_request(endpoint, body)
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST)
 
-        artist = {'description': None, 'views': None}
-        header = response['header']['musicImmersiveHeaderRenderer']
-        artist['name'] = nav(header, TITLE_TEXT)
-        descriptionShelf = find_object_by_key(results,
-                                              DESCRIPTION_SHELF[0],
-                                              is_key=True)
+        artist = {"description": None, "views": None}
+        header = response["header"]["musicImmersiveHeaderRenderer"]
+        artist["name"] = nav(header, TITLE_TEXT)
+        descriptionShelf = find_object_by_key(
+            results, DESCRIPTION_SHELF[0], is_key=True
+        )
         if descriptionShelf:
-            artist['description'] = nav(descriptionShelf, DESCRIPTION)
-            artist['views'] = None if 'subheader' not in descriptionShelf else descriptionShelf[
-                'subheader']['runs'][0]['text']
-        subscription_button = header['subscriptionButton']['subscribeButtonRenderer']
-        artist['channelId'] = subscription_button['channelId']
-        artist['shuffleId'] = nav(header,
-                                  ['playButton', 'buttonRenderer'] + NAVIGATION_WATCH_PLAYLIST_ID,
-                                  True)
-        artist['radioId'] = nav(header, ['startRadioButton', 'buttonRenderer']
-                                + NAVIGATION_WATCH_PLAYLIST_ID, True)
-        artist['subscribers'] = nav(subscription_button,
-                                    ['subscriberCountText', 'runs', 0, 'text'], True)
-        artist['subscribed'] = subscription_button['subscribed']
-        artist['thumbnails'] = nav(header, THUMBNAILS, True)
-        artist['songs'] = {'browseId': None}
-        if 'musicShelfRenderer' in results[0]:  # API sometimes does not return songs
+            artist["description"] = nav(descriptionShelf, DESCRIPTION)
+            artist["views"] = (
+                None
+                if "subheader" not in descriptionShelf
+                else descriptionShelf["subheader"]["runs"][0]["text"]
+            )
+        subscription_button = header["subscriptionButton"]["subscribeButtonRenderer"]
+        artist["channelId"] = subscription_button["channelId"]
+        artist["shuffleId"] = nav(
+            header,
+            ["playButton", "buttonRenderer"] + NAVIGATION_WATCH_PLAYLIST_ID,
+            True,
+        )
+        artist["radioId"] = nav(
+            header,
+            ["startRadioButton", "buttonRenderer"] + NAVIGATION_WATCH_PLAYLIST_ID,
+            True,
+        )
+        artist["subscribers"] = nav(
+            subscription_button, ["subscriberCountText", "runs", 0, "text"], True
+        )
+        artist["subscribed"] = subscription_button["subscribed"]
+        artist["thumbnails"] = nav(header, THUMBNAILS, True)
+        artist["songs"] = {"browseId": None}
+        if "musicShelfRenderer" in results[0]:  # API sometimes does not return songs
             musicShelf = nav(results[0], MUSIC_SHELF)
-            if 'navigationEndpoint' in nav(musicShelf, TITLE):
-                artist['songs']['browseId'] = nav(musicShelf, TITLE + NAVIGATION_BROWSE_ID)
-            artist['songs']['results'] = parse_playlist_items(musicShelf['contents'])
+            if "navigationEndpoint" in nav(musicShelf, TITLE):
+                artist["songs"]["browseId"] = nav(
+                    musicShelf, TITLE + NAVIGATION_BROWSE_ID
+                )
+            artist["songs"]["results"] = parse_playlist_items(musicShelf["contents"])
 
         artist.update(self.parser.parse_artist_contents(results))
         return artist
 
-    def get_artist_albums(self, channelId: str, params: str) -> List[Dict]:
+    async def get_artist_albums(self, channelId: str, params: str) -> List[Dict]:
         """
         Get the full list of an artist's albums or singles
 
@@ -250,14 +268,14 @@ class BrowsingMixin:
 
         """
         body = {"browseId": channelId, "params": params}
-        endpoint = 'browse'
-        response = self._send_request(endpoint, body)
+        endpoint = "browse"
+        response = await self._send_request(endpoint, body)
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST_ITEM + GRID_ITEMS)
         albums = parse_albums(results)
 
         return albums
 
-    def get_user(self, channelId: str) -> Dict:
+    async def get_user(self, channelId: str) -> Dict:
         """
         Retrieve a user's page. A user may own videos or playlists.
 
@@ -305,15 +323,17 @@ class BrowsingMixin:
               }
             }
         """
-        endpoint = 'browse'
+        endpoint = "browse"
         body = {"browseId": channelId}
-        response = self._send_request(endpoint, body)
-        user = {'name': nav(response, ['header', 'musicVisualHeaderRenderer'] + TITLE_TEXT)}
+        response = await self._send_request(endpoint, body)
+        user = {
+            "name": nav(response, ["header", "musicVisualHeaderRenderer"] + TITLE_TEXT)
+        }
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST)
         user.update(self.parser.parse_artist_contents(results))
         return user
 
-    def get_user_playlists(self, channelId: str, params: str) -> List[Dict]:
+    async def get_user_playlists(self, channelId: str, params: str) -> List[Dict]:
         """
         Retrieve a list of playlists for a given user.
         Call this function again with the returned ``params`` to get the full list.
@@ -323,15 +343,15 @@ class BrowsingMixin:
         :return: List of user playlists in the format of :py:func:`get_library_playlists`
 
         """
-        endpoint = 'browse'
-        body = {"browseId": channelId, 'params': params}
-        response = self._send_request(endpoint, body)
+        endpoint = "browse"
+        body = {"browseId": channelId, "params": params}
+        response = await self._send_request(endpoint, body)
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST_ITEM + GRID_ITEMS)
         user_playlists = parse_content_list(results, parse_playlist)
 
         return user_playlists
 
-    def get_album_browse_id(self, audioPlaylistId: str):
+    async def get_album_browse_id(self, audioPlaylistId: str):
         """
         Get an album's browseId based on its audioPlaylistId
 
@@ -339,14 +359,14 @@ class BrowsingMixin:
         :return: browseId (starting with `MPREb_`)
         """
         params = {"list": audioPlaylistId}
-        response = self._send_get_request(YTM_DOMAIN + "/playlist", params)
+        response = await self._send_get_request(YTM_DOMAIN + "/playlist", params)
         matches = re.findall(r"\"MPRE.+?\"", response)
         browse_id = None
         if len(matches) > 0:
-            browse_id = matches[0].encode('utf8').decode('unicode-escape').strip('"')
+            browse_id = matches[0].encode("utf8").decode("unicode-escape").strip('"')
         return browse_id
 
-    def get_album(self, browseId: str) -> Dict:
+    async def get_album(self, browseId: str) -> Dict:
         """
         Get information and tracks of an album
 
@@ -397,20 +417,20 @@ class BrowsingMixin:
               "duration_seconds": 4657
             }
         """
-        body = {'browseId': browseId}
-        endpoint = 'browse'
-        response = self._send_request(endpoint, body)
+        body = {"browseId": browseId}
+        endpoint = "browse"
+        response = await self._send_request(endpoint, body)
         album = parse_album_header(response)
         results = nav(response, SINGLE_COLUMN_TAB + SECTION_LIST_ITEM + MUSIC_SHELF)
-        album['tracks'] = parse_playlist_items(results['contents'])
-        album['duration_seconds'] = sum_total_duration(album)
-        for i, track in enumerate(album['tracks']):
-            album['tracks'][i]['album'] = album['title']
-            album['tracks'][i]['artists'] = album['artists']
+        album["tracks"] = parse_playlist_items(results["contents"])
+        album["duration_seconds"] = sum_total_duration(album)
+        for track in album["tracks"]:
+            track["album"] = album["title"]
+            track["artists"] = album["artists"]
 
         return album
 
-    def get_song(self, videoId: str, signatureTimestamp: int = None) -> Dict:
+    async def get_song(self, videoId: str, signatureTimestamp: int = None) -> Dict:
         """
         Returns metadata and streaming information about a song or video.
 
@@ -554,26 +574,24 @@ class BrowsingMixin:
             }
 
         """
-        endpoint = 'player'
+        endpoint = "player"
         if not signatureTimestamp:
             signatureTimestamp = get_datestamp() - 1
 
         params = {
             "playbackContext": {
-                "contentPlaybackContext": {
-                    "signatureTimestamp": signatureTimestamp
-                }
+                "contentPlaybackContext": {"signatureTimestamp": signatureTimestamp}
             },
-            "video_id": videoId
+            "video_id": videoId,
         }
-        response = self._send_request(endpoint, params)
-        keys = ['videoDetails', 'playabilityStatus', 'streamingData', 'microformat']
+        response = await self._send_request(endpoint, params)
+        keys = ["videoDetails", "playabilityStatus", "streamingData", "microformat"]
         for k in list(response.keys()):
             if k not in keys:
                 del response[k]
         return response
 
-    def get_song_related(self, browseId: str):
+    async def get_song_related(self, browseId: str):
         """
         Gets related content for a song. Equivalent to the content
         shown in the "Related" tab of the watch panel.
@@ -650,11 +668,11 @@ class BrowsingMixin:
         if not browseId:
             raise Exception("Invalid browseId provided.")
 
-        response = self._send_request('browse', {'browseId': browseId})
-        sections = nav(response, ['contents'] + SECTION_LIST)
+        response = await self._send_request("browse", {"browseId": browseId})
+        sections = nav(response, ["contents"] + SECTION_LIST)
         return self.parser.parse_mixed_content(sections)
 
-    def get_lyrics(self, browseId: str) -> Dict:
+    async def get_lyrics(self, browseId: str) -> Dict:
         """
         Returns lyrics of a song or video.
 
@@ -671,30 +689,42 @@ class BrowsingMixin:
         """
         lyrics = {}
         if not browseId:
-            raise Exception("Invalid browseId provided. This song might not have lyrics.")
+            raise Exception(
+                "Invalid browseId provided. This song might not have lyrics."
+            )
 
-        response = self._send_request('browse', {'browseId': browseId})
-        lyrics['lyrics'] = nav(response, ['contents'] + SECTION_LIST_ITEM
-                               + DESCRIPTION_SHELF + DESCRIPTION, True)
-        lyrics['source'] = nav(response, ['contents'] + SECTION_LIST_ITEM
-                               + DESCRIPTION_SHELF + ['footer'] + RUN_TEXT, True)
+        response = await self._send_request("browse", {"browseId": browseId})
+        lyrics["lyrics"] = nav(
+            response,
+            ["contents"] + SECTION_LIST_ITEM + DESCRIPTION_SHELF + DESCRIPTION,
+            True,
+        )
+        lyrics["source"] = nav(
+            response,
+            ["contents"]
+            + SECTION_LIST_ITEM
+            + DESCRIPTION_SHELF
+            + ["footer"]
+            + RUN_TEXT,
+            True,
+        )
 
         return lyrics
 
-    def get_basejs_url(self):
+    async def get_basejs_url(self):
         """
         Extract the URL for the `base.js` script from YouTube Music.
 
         :return: URL to `base.js`
         """
-        response = self._send_get_request(url=YTM_DOMAIN)
+        response = await self._send_get_request(url=YTM_DOMAIN)
         match = re.search(r'jsUrl"\s*:\s*"([^"]+)"', response)
         if match is None:
             raise Exception("Could not identify the URL for base.js player.")
 
         return YTM_DOMAIN + match.group(1)
 
-    def get_signatureTimestamp(self, url: str = None) -> int:
+    async def get_signatureTimestamp(self, url: str = None) -> int:
         """
         Fetch the `base.js` script from YouTube Music and parse out the
         `signatureTimestamp` for use with :py:func:`get_song`.
@@ -704,8 +734,8 @@ class BrowsingMixin:
         :return: `signatureTimestamp` string
         """
         if url is None:
-            url = self.get_basejs_url()
-        response = self._send_get_request(url=url)
+            url = await self.get_basejs_url()
+        response = await self._send_get_request(url=url)
         match = re.search(r"signatureTimestamp[:=](\d+)", response)
         if match is None:
             raise Exception("Unable to identify the signatureTimestamp.")

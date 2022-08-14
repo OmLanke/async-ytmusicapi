@@ -5,12 +5,14 @@ from ytmusicapi.parsers.search_params import *
 
 
 class SearchMixin:
-    def search(self,
-               query: str,
-               filter: str = None,
-               scope: str = None,
-               limit: int = 20,
-               ignore_spelling: bool = False) -> List[Dict]:
+    async def search(
+        self,
+        query: str,
+        filter: str = None,
+        scope: str = None,
+        limit: int = 20,
+        ignore_spelling: bool = False,
+    ) -> List[Dict]:
         """
         Search YouTube music
         Returns results within the provided category.
@@ -120,23 +122,30 @@ class SearchMixin:
 
 
         """
-        body = {'query': query}
-        endpoint = 'search'
+        body = {"query": query}
+        endpoint = "search"
         search_results = []
         filters = [
-            'albums', 'artists', 'playlists', 'community_playlists', 'featured_playlists', 'songs',
-            'videos'
+            "albums",
+            "artists",
+            "playlists",
+            "community_playlists",
+            "featured_playlists",
+            "songs",
+            "videos",
         ]
         if filter and filter not in filters:
             raise Exception(
                 "Invalid filter provided. Please use one of the following filters or leave out the parameter: "
-                + ', '.join(filters))
+                + ", ".join(filters)
+            )
 
-        scopes = ['library', 'uploads']
+        scopes = ["library", "uploads"]
         if scope and scope not in scopes:
             raise Exception(
                 "Invalid scope provided. Please use one of the following scopes or leave out the parameter: "
-                + ', '.join(scopes))
+                + ", ".join(scopes)
+            )
 
         if scope == scopes[1] and filter:
             raise Exception(
@@ -146,54 +155,65 @@ class SearchMixin:
 
         params = get_search_params(filter, scope, ignore_spelling)
         if params:
-            body['params'] = params
+            body["params"] = params
 
-        response = self._send_request(endpoint, body)
+        response = await self._send_request(endpoint, body)
 
         # no results
-        if 'contents' not in response:
+        if "contents" not in response:
             return search_results
 
-        if 'tabbedSearchResultsRenderer' in response['contents']:
+        if "tabbedSearchResultsRenderer" in response["contents"]:
             tab_index = 0 if not scope or filter else scopes.index(scope) + 1
-            results = response['contents']['tabbedSearchResultsRenderer']['tabs'][tab_index][
-                'tabRenderer']['content']
+            results = response["contents"]["tabbedSearchResultsRenderer"]["tabs"][
+                tab_index
+            ]["tabRenderer"]["content"]
         else:
-            results = response['contents']
+            results = response["contents"]
 
         results = nav(results, SECTION_LIST)
 
         # no results
-        if len(results) == 1 and 'itemSectionRenderer' in results:
+        if len(results) == 1 and "itemSectionRenderer" in results:
             return search_results
 
         # set filter for parser
-        if filter and 'playlists' in filter:
-            filter = 'playlists'
+        if filter and "playlists" in filter:
+            filter = "playlists"
         elif scope == scopes[1]:
             filter = scopes[1]
 
         for res in results:
-            if 'musicShelfRenderer' in res:
-                results = res['musicShelfRenderer']['contents']
+            if "musicShelfRenderer" in res:
+                results = res["musicShelfRenderer"]["contents"]
                 original_filter = filter
                 category = nav(res, MUSIC_SHELF + TITLE_TEXT, True)
                 if not filter and scope == scopes[0]:
                     filter = category
 
                 type = filter[:-1].lower() if filter else None
-                search_results.extend(self.parser.parse_search_results(results, type, category))
+                search_results.extend(
+                    self.parser.parse_search_results(results, type, category)
+                )
                 filter = original_filter
 
-                if 'continuations' in res['musicShelfRenderer']:
+                if "continuations" in res["musicShelfRenderer"]:
                     request_func = lambda additionalParams: self._send_request(
-                        endpoint, body, additionalParams)
+                        endpoint, body, additionalParams
+                    )
 
                     parse_func = lambda contents: self.parser.parse_search_results(
-                        contents, type, category)
+                        contents, type, category
+                    )
 
                     search_results.extend(
-                        get_continuations(res['musicShelfRenderer'], 'musicShelfContinuation',
-                                          limit - len(search_results), request_func, parse_func))
+                        await get_continuations(
+                            res["musicShelfRenderer"],
+                            "musicShelfContinuation",
+                            limit - len(search_results),
+                            request_func,
+                            parse_func,
+                        )
+                    )
 
         return search_results

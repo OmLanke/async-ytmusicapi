@@ -9,7 +9,7 @@ from ytmusicapi.parsers.playlists import *
 
 
 class PlaylistsMixin:
-    def get_playlist(self, playlistId: str, limit: int = 100) -> Dict:
+    async def get_playlist(self, playlistId: str, limit: int = 100) -> Dict:
         """
         Returns a list of playlist items
 
@@ -65,62 +65,77 @@ class PlaylistsMixin:
         needed for moving/removing playlist items
         """
         browseId = "VL" + playlistId if not playlistId.startswith("VL") else playlistId
-        body = {'browseId': browseId}
-        endpoint = 'browse'
-        response = self._send_request(endpoint, body)
-        results = nav(response,
-                      SINGLE_COLUMN_TAB + SECTION_LIST_ITEM + ['musicPlaylistShelfRenderer'])
-        playlist = {'id': results['playlistId']}
-        own_playlist = 'musicEditablePlaylistDetailHeaderRenderer' in response['header']
+        body = {"browseId": browseId}
+        endpoint = "browse"
+        response = await self._send_request(endpoint, body)
+        results = nav(
+            response,
+            SINGLE_COLUMN_TAB + SECTION_LIST_ITEM + ["musicPlaylistShelfRenderer"],
+        )
+        playlist = {"id": results["playlistId"]}
+        own_playlist = "musicEditablePlaylistDetailHeaderRenderer" in response["header"]
         if not own_playlist:
-            header = response['header']['musicDetailHeaderRenderer']
-            playlist['privacy'] = 'PUBLIC'
+            header = response["header"]["musicDetailHeaderRenderer"]
+            playlist["privacy"] = "PUBLIC"
         else:
-            header = response['header']['musicEditablePlaylistDetailHeaderRenderer']
-            playlist['privacy'] = header['editHeader']['musicPlaylistEditHeaderRenderer'][
-                'privacy']
-            header = header['header']['musicDetailHeaderRenderer']
+            header = response["header"]["musicEditablePlaylistDetailHeaderRenderer"]
+            playlist["privacy"] = header["editHeader"][
+                "musicPlaylistEditHeaderRenderer"
+            ]["privacy"]
+            header = header["header"]["musicDetailHeaderRenderer"]
 
-        playlist['title'] = nav(header, TITLE_TEXT)
-        playlist['thumbnails'] = nav(header, THUMBNAIL_CROPPED)
+        playlist["title"] = nav(header, TITLE_TEXT)
+        playlist["thumbnails"] = nav(header, THUMBNAIL_CROPPED)
         playlist["description"] = nav(header, DESCRIPTION, True)
-        run_count = len(header['subtitle']['runs'])
+        run_count = len(header["subtitle"]["runs"])
         if run_count > 1:
-            playlist['author'] = {
-                'name': nav(header, SUBTITLE2),
-                'id': nav(header, ['subtitle', 'runs', 2] + NAVIGATION_BROWSE_ID, True)
+            playlist["author"] = {
+                "name": nav(header, SUBTITLE2),
+                "id": nav(header, ["subtitle", "runs", 2] + NAVIGATION_BROWSE_ID, True),
             }
             if run_count == 5:
-                playlist['year'] = nav(header, SUBTITLE3)
+                playlist["year"] = nav(header, SUBTITLE3)
 
         song_count = to_int(
-            unicodedata.normalize("NFKD", header['secondSubtitle']['runs'][0]['text']))
-        if len(header['secondSubtitle']['runs']) > 1:
-            playlist['duration'] = header['secondSubtitle']['runs'][2]['text']
+            unicodedata.normalize("NFKD", header["secondSubtitle"]["runs"][0]["text"])
+        )
+        if len(header["secondSubtitle"]["runs"]) > 1:
+            playlist["duration"] = header["secondSubtitle"]["runs"][2]["text"]
 
-        playlist['trackCount'] = song_count
-        playlist['suggestions_token'] = nav(
-            response, SINGLE_COLUMN_TAB + ['sectionListRenderer', 'contents', 1] + MUSIC_SHELF
-            + RELOAD_CONTINUATION, True)
+        playlist["trackCount"] = song_count
+        playlist["suggestions_token"] = nav(
+            response,
+            SINGLE_COLUMN_TAB
+            + ["sectionListRenderer", "contents", 1]
+            + MUSIC_SHELF
+            + RELOAD_CONTINUATION,
+            True,
+        )
 
-        playlist['tracks'] = []
+        playlist["tracks"] = []
         if song_count > 0:
-            playlist['tracks'].extend(parse_playlist_items(results['contents']))
+            playlist["tracks"].extend(parse_playlist_items(results["contents"]))
             songs_to_get = min(limit, song_count)
 
-            if 'continuations' in results:
+            if "continuations" in results:
                 request_func = lambda additionalParams: self._send_request(
-                    endpoint, body, additionalParams)
+                    endpoint, body, additionalParams
+                )
                 parse_func = lambda contents: parse_playlist_items(contents)
-                playlist['tracks'].extend(
-                    get_continuations(results, 'musicPlaylistShelfContinuation',
-                                      songs_to_get - len(playlist['tracks']), request_func,
-                                      parse_func))
+                playlist["tracks"].extend(
+                    await get_continuations(
+                        results,
+                        "musicPlaylistShelfContinuation",
+                        songs_to_get - len(playlist["tracks"]),
+                        request_func,
+                        parse_func,
+                    )
+                )
 
-        playlist['duration_seconds'] = sum_total_duration(playlist)
+        playlist["duration_seconds"] = sum_total_duration(playlist)
         return playlist
 
-    def get_playlist_suggestions(self, suggestions_token: str) -> Dict:
+    async def get_playlist_suggestions(self, suggestions_token: str) -> Dict:
         """
         Gets suggested tracks to add to a playlist. Suggestions are offered for playlists with less than 100 tracks
 
@@ -129,22 +144,26 @@ class PlaylistsMixin:
             For data format of tracks, check :py:func:`get_playlist`
         """
         if not suggestions_token:
-            raise Exception('Suggestions token is None. '
-                            'Please ensure the playlist is small enough to receive suggestions.')
-        endpoint = 'browse'
+            raise Exception(
+                "Suggestions token is None. "
+                "Please ensure the playlist is small enough to receive suggestions."
+            )
+        endpoint = "browse"
         additionalParams = get_continuation_string(suggestions_token)
-        response = self._send_request(endpoint, {}, additionalParams)
-        results = nav(response, ['continuationContents', 'musicShelfContinuation'])
+        response = await self._send_request(endpoint, {}, additionalParams)
+        results = nav(response, ["continuationContents", "musicShelfContinuation"])
         refresh_token = nav(results, RELOAD_CONTINUATION)
-        suggestions = parse_playlist_items(results['contents'])
-        return {'tracks': suggestions, 'refresh_token': refresh_token}
+        suggestions = parse_playlist_items(results["contents"])
+        return {"tracks": suggestions, "refresh_token": refresh_token}
 
-    def create_playlist(self,
-                        title: str,
-                        description: str,
-                        privacy_status: str = "PRIVATE",
-                        video_ids: List = None,
-                        source_playlist: str = None) -> Union[str, Dict]:
+    async def create_playlist(
+        self,
+        title: str,
+        description: str,
+        privacy_status: str = "PRIVATE",
+        video_ids: List = None,
+        source_playlist: str = None,
+    ) -> Union[str, Dict]:
         """
         Creates a new empty playlist and returns its id.
 
@@ -157,27 +176,29 @@ class PlaylistsMixin:
         """
         self._check_auth()
         body = {
-            'title': title,
-            'description': html_to_txt(description),  # YT does not allow HTML tags
-            'privacyStatus': privacy_status
+            "title": title,
+            "description": html_to_txt(description),  # YT does not allow HTML tags
+            "privacyStatus": privacy_status,
         }
         if video_ids is not None:
-            body['videoIds'] = video_ids
+            body["videoIds"] = video_ids
 
         if source_playlist is not None:
-            body['sourcePlaylistId'] = source_playlist
+            body["sourcePlaylistId"] = source_playlist
 
-        endpoint = 'playlist/create'
-        response = self._send_request(endpoint, body)
-        return response['playlistId'] if 'playlistId' in response else response
+        endpoint = "playlist/create"
+        response = await self._send_request(endpoint, body)
+        return response["playlistId"] if "playlistId" in response else response
 
-    def edit_playlist(self,
-                      playlistId: str,
-                      title: str = None,
-                      description: str = None,
-                      privacyStatus: str = None,
-                      moveItem: Tuple[str, str] = None,
-                      addPlaylistId: str = None) -> Union[str, Dict]:
+    async def edit_playlist(
+        self,
+        playlistId: str,
+        title: str = None,
+        description: str = None,
+        privacyStatus: str = None,
+        moveItem: Tuple[str, str] = None,
+        addPlaylistId: str = None,
+    ) -> Union[str, Dict]:
         """
         Edit title, description or privacyStatus of a playlist.
         You may also move an item within a playlist or append another playlist to this playlist.
@@ -191,39 +212,49 @@ class PlaylistsMixin:
         :return: Status String or full response
         """
         self._check_auth()
-        body = {'playlistId': validate_playlist_id(playlistId)}
+        body = {"playlistId": validate_playlist_id(playlistId)}
         actions = []
         if title:
-            actions.append({'action': 'ACTION_SET_PLAYLIST_NAME', 'playlistName': title})
+            actions.append(
+                {"action": "ACTION_SET_PLAYLIST_NAME", "playlistName": title}
+            )
 
         if description:
-            actions.append({
-                'action': 'ACTION_SET_PLAYLIST_DESCRIPTION',
-                'playlistDescription': description
-            })
+            actions.append(
+                {
+                    "action": "ACTION_SET_PLAYLIST_DESCRIPTION",
+                    "playlistDescription": description,
+                }
+            )
 
         if privacyStatus:
-            actions.append({
-                'action': 'ACTION_SET_PLAYLIST_PRIVACY',
-                'playlistPrivacy': privacyStatus
-            })
+            actions.append(
+                {
+                    "action": "ACTION_SET_PLAYLIST_PRIVACY",
+                    "playlistPrivacy": privacyStatus,
+                }
+            )
 
         if moveItem:
-            actions.append({
-                'action': 'ACTION_MOVE_VIDEO_BEFORE',
-                'setVideoId': moveItem[0],
-                'movedSetVideoIdSuccessor': moveItem[1]
-            })
+            actions.append(
+                {
+                    "action": "ACTION_MOVE_VIDEO_BEFORE",
+                    "setVideoId": moveItem[0],
+                    "movedSetVideoIdSuccessor": moveItem[1],
+                }
+            )
 
         if addPlaylistId:
-            actions.append({'action': 'ACTION_ADD_PLAYLIST', 'addedFullListId': addPlaylistId})
+            actions.append(
+                {"action": "ACTION_ADD_PLAYLIST", "addedFullListId": addPlaylistId}
+            )
 
-        body['actions'] = actions
-        endpoint = 'browse/edit_playlist'
-        response = self._send_request(endpoint, body)
-        return response['status'] if 'status' in response else response
+        body["actions"] = actions
+        endpoint = "browse/edit_playlist"
+        response = await self._send_request(endpoint, body)
+        return response["status"] if "status" in response else response
 
-    def delete_playlist(self, playlistId: str) -> Union[str, Dict]:
+    async def delete_playlist(self, playlistId: str) -> Union[str, Dict]:
         """
         Delete a playlist.
 
@@ -231,16 +262,18 @@ class PlaylistsMixin:
         :return: Status String or full response
         """
         self._check_auth()
-        body = {'playlistId': validate_playlist_id(playlistId)}
-        endpoint = 'playlist/delete'
-        response = self._send_request(endpoint, body)
-        return response['status'] if 'status' in response else response
+        body = {"playlistId": validate_playlist_id(playlistId)}
+        endpoint = "playlist/delete"
+        response = await self._send_request(endpoint, body)
+        return response["status"] if "status" in response else response
 
-    def add_playlist_items(self,
-                           playlistId: str,
-                           videoIds: List[str] = None,
-                           source_playlist: str = None,
-                           duplicates: bool = False) -> Union[str, Dict]:
+    async def add_playlist_items(
+        self,
+        playlistId: str,
+        videoIds: List[str] = None,
+        source_playlist: str = None,
+        duplicates: bool = False,
+    ) -> Union[str, Dict]:
         """
         Add songs to an existing playlist
 
@@ -251,32 +284,34 @@ class PlaylistsMixin:
         :return: Status String and a dict containing the new setVideoId for each videoId or full response
         """
         self._check_auth()
-        body = {'playlistId': validate_playlist_id(playlistId), 'actions': []}
+        body = {"playlistId": validate_playlist_id(playlistId), "actions": []}
         if not videoIds and not source_playlist:
             raise Exception(
-                "You must provide either videoIds or a source_playlist to add to the playlist")
+                "You must provide either videoIds or a source_playlist to add to the playlist"
+            )
 
         if videoIds:
             for videoId in videoIds:
-                action = {'action': 'ACTION_ADD_VIDEO', 'addedVideoId': videoId}
+                action = {"action": "ACTION_ADD_VIDEO", "addedVideoId": videoId}
                 if duplicates:
-                    action['dedupeOption'] = 'DEDUPE_OPTION_SKIP'
-                body['actions'].append(action)
+                    action["dedupeOption"] = "DEDUPE_OPTION_SKIP"
+                body["actions"].append(action)
 
         if source_playlist:
-            body['actions'].append({
-                'action': 'ACTION_ADD_PLAYLIST',
-                'addedFullListId': source_playlist
-            })
+            body["actions"].append(
+                {"action": "ACTION_ADD_PLAYLIST", "addedFullListId": source_playlist}
+            )
 
             # add an empty ACTION_ADD_VIDEO because otherwise
             # YTM doesn't return the dict that maps videoIds to their new setVideoIds
             if not videoIds:
-                body['actions'].append({'action': 'ACTION_ADD_VIDEO', 'addedVideoId': None})
+                body["actions"].append(
+                    {"action": "ACTION_ADD_VIDEO", "addedVideoId": None}
+                )
 
-        endpoint = 'browse/edit_playlist'
-        response = self._send_request(endpoint, body)
-        if 'status' in response and 'SUCCEEDED' in response['status']:
+        endpoint = "browse/edit_playlist"
+        response = await self._send_request(endpoint, body)
+        if "status" in response and "SUCCEEDED" in response["status"]:
             result_dict = [
                 result_data.get("playlistEditVideoAddedResultData")
                 for result_data in response.get("playlistEditResults", [])
@@ -285,7 +320,9 @@ class PlaylistsMixin:
         else:
             return response
 
-    def remove_playlist_items(self, playlistId: str, videos: List[Dict]) -> Union[str, Dict]:
+    async def remove_playlist_items(
+        self, playlistId: str, videos: List[Dict]
+    ) -> Union[str, Dict]:
         """
         Remove songs from an existing playlist
 
@@ -295,19 +332,22 @@ class PlaylistsMixin:
         :return: Status String or full response
         """
         self._check_auth()
-        videos = list(filter(lambda x: 'videoId' in x and 'setVideoId' in x, videos))
+        videos = list(filter(lambda x: "videoId" in x and "setVideoId" in x, videos))
         if len(videos) == 0:
             raise Exception(
-                "Cannot remove songs, because setVideoId is missing. Do you own this playlist?")
+                "Cannot remove songs, because setVideoId is missing. Do you own this playlist?"
+            )
 
-        body = {'playlistId': validate_playlist_id(playlistId), 'actions': []}
+        body = {"playlistId": validate_playlist_id(playlistId), "actions": []}
         for video in videos:
-            body['actions'].append({
-                'setVideoId': video['setVideoId'],
-                'removedVideoId': video['videoId'],
-                'action': 'ACTION_REMOVE_VIDEO'
-            })
+            body["actions"].append(
+                {
+                    "setVideoId": video["setVideoId"],
+                    "removedVideoId": video["videoId"],
+                    "action": "ACTION_REMOVE_VIDEO",
+                }
+            )
 
-        endpoint = 'browse/edit_playlist'
-        response = self._send_request(endpoint, body)
-        return response['status'] if 'status' in response else response
+        endpoint = "browse/edit_playlist"
+        response = await self._send_request(endpoint, body)
+        return response["status"] if "status" in response else response

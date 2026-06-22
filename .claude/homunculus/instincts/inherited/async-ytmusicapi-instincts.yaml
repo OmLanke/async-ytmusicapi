@@ -1,0 +1,404 @@
+# Instincts generated from https://github.com/OmLanke/async-ytmusicapi
+# Generated: 2026-06-22T09:13:06.631Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: async-ytmusicapi-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Commit Length
+
+## Action
+
+Keep commit messages concise (~23 characters)
+
+## Evidence
+
+- Average commit message length: 23 chars
+- Based on 4 commits
+
+---
+id: async-ytmusicapi-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: async-ytmusicapi-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: async-ytmusicapi-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: async-ytmusicapi-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: async-ytmusicapi-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.ts
+
+## Evidence
+
+- File pattern: *.test.ts
+- Consistent across test files
+
+---
+id: async-ytmusicapi-workflow-update-documentation
+trigger: "when doing update documentation"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Workflow Update Documentation
+
+## Action
+
+Follow the update-documentation workflow:
+1. Edit README.rst to add or clarify documentation.
+2. Commit the changes with a message referencing documentation or README.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: README.rst
+
+---
+id: async-ytmusicapi-workflow-update-dependency-lockfile
+trigger: "when doing update dependency lockfile"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Workflow Update Dependency Lockfile
+
+## Action
+
+Follow the update-dependency-lockfile workflow:
+1. Run the dependency manager to update pdm.lock.
+2. Commit the updated pdm.lock file.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: pdm.lock
+
+---
+id: async-ytmusicapi-instinct-file-naming
+trigger: "When creating a new Python file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct File Naming
+
+## Action
+
+Name the file using camelCase (e.g., myModule.py)
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.files
+
+---
+id: async-ytmusicapi-instinct-function-naming
+trigger: "When defining a new function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Function Naming
+
+## Action
+
+Name the function using camelCase (e.g., fetchData())
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.functions
+
+---
+id: async-ytmusicapi-instinct-class-naming
+trigger: "When defining a new class"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Class Naming
+
+## Action
+
+Name the class using PascalCase (e.g., MusicFetcher)
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.classes
+
+---
+id: async-ytmusicapi-instinct-constant-naming
+trigger: "When defining a constant value"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Constant Naming
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE (e.g., MAX_RETRIES)
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.constants
+
+---
+id: async-ytmusicapi-instinct-import-style
+trigger: "When importing modules within the package"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Import Style
+
+## Action
+
+Use relative imports
+
+## Evidence
+
+- Pattern in codeStyle.importStyle
+
+---
+id: async-ytmusicapi-instinct-export-style
+trigger: "When exporting functions or classes"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Export Style
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in codeStyle.exportStyle
+
+---
+id: async-ytmusicapi-instinct-test-location
+trigger: "When adding new tests"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Test Location
+
+## Action
+
+Place test files in the 'tests' folder, separate from source code
+
+## Evidence
+
+- Pattern in architecture.folderStructure.testLocation
+- Presence of 'tests' folder
+
+---
+id: async-ytmusicapi-instinct-test-type
+trigger: "When writing tests"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Test Type
+
+## Action
+
+Write unit tests
+
+## Evidence
+
+- Pattern in testing.testTypes
+
+---
+id: async-ytmusicapi-instinct-commit-prefix
+trigger: "When making a git commit"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Commit Prefix
+
+## Action
+
+Prefix the commit message with 'feat' for features or 'chore' for maintenance
+
+## Evidence
+
+- Seen in commit 'feat: convert to async'
+- Seen in commit 'chore: Update pdm.lock'
+
+---
+id: async-ytmusicapi-instinct-commit-length
+trigger: "When writing a commit message"
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Commit Length
+
+## Action
+
+Keep the commit message concise (average ~23 characters)
+
+## Evidence
+
+- Pattern in commits.averageLength
+
+---
+id: async-ytmusicapi-instinct-update-docs
+trigger: "When someone wants to update or improve the project documentation"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Update Docs
+
+## Action
+
+Edit README.rst and commit with a message referencing documentation or README
+
+## Evidence
+
+- Workflow: update-documentation
+- Commits editing README.rst
+
+---
+id: async-ytmusicapi-instinct-update-lockfile
+trigger: "When dependencies change or the lockfile needs to be updated"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: OmLanke/async-ytmusicapi
+---
+
+# Async Ytmusicapi Instinct Update Lockfile
+
+## Action
+
+Run the dependency manager to update pdm.lock and commit the updated file
+
+## Evidence
+
+- Workflow: update-dependency-lockfile
+- Commits updating pdm.lock
+
